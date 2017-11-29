@@ -27,7 +27,7 @@ Additional options that may need to be added to the docker command line:
 - if the environment in which Docker is running does not have your AD system as the DNS resolver, add one or more `--dns` options, specifying alternate DNS servers that are part of the AD domain and can answer the queries required to find an AD domain controller.
 - if you already have a server certificate, map the file into the container's filesystem namespace with -v /path/to/my/cert.pem:/cert.pem and replace the `--autocert ...` option given to Skopos with `--certfile /cert.pem`. If starting Skopos as a docker-swarm service, the certificate can be mapped with the --secret option (unlike -v, this allows starting on any swarm node).
 
-When using the newly-built image to start Skopos, the freshly-started engine is functional and accessible on the network, but will not be able to authenticate immediately against AD. For this the container needs to be joined to the AD domain as a member. Run the following command to do this, replacing the :
+When using the newly-built image to start Skopos, the freshly-started engine is functional and accessible on the network, but will not be able to authenticate immediately against AD. For this the container needs to be joined to the AD domain as a member. Run the following command to do this, replacing the uppercase placeholder strings as described below:
 
 ```
 docker exec -ti skopos /skopos/ad-join [-u ADMINUSR] [-g 'DOM\GROUP'] DOM REALM
@@ -45,7 +45,7 @@ The `ad-join` command must be run interactively (with the `docker exec -ti` opti
 
 The `ad-join` command may output some warning messages, these are normal. If you see a line that says "Joined 'XXX' to dns domain 'example.com'", the operation was successful.
 
-Skopos is now ready to authenticate domain users. Simply enter the name exactly as you see it a Windows workstation login prompt, including the DOM\\ prefix, e.g.: "EXAMPLE\the-user".
+Skopos is now ready to authenticate domain users. In the Skopos login page, enter the user name exactly as you see it on a Windows workstation login prompt, including the DOM\\ prefix, e.g.: "EXAMPLE\the-user".
 
 NOTE user names without a DOM\\ prefix are treated as local user names and are authenticated against the /etc/passwd and /etc/shadow databases. Local users can be added just as for an unmodified Skopos container, with 'docker exec skopos useradd new-user-name'.
 
