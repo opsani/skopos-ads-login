@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# if we're in a domain, enable winbind
+if net ads testjoin </dev/null >/dev/null ; then
+   nmbd --daemon
+   winbindd --daemon
+fi
+
+# pass control to skopos
+exec /skopos/engine -d "$@"

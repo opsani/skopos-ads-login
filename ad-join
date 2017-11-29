@@ -1,0 +1,111 @@
+#!/bin/sh
+
+die() {
+   echo "$*" >&2
+   exit 1
+}
+
+#AD_DOMAIN=
+#AD_REALM=
+usr=Administrator
+grp=
+p=1
+while [ "$#" != 0 ] ; do
+   case "$1" in
+      -u|-U)
+         [ -z "$2" ] && die "$1 option requires a value"
+         shift
+         usr="$1"
+         ;;
+      -u=*|-U=*)
+         usr="${1#-?=}"
+         [ -z "$usr" ] && die "$1 value should not be empty"
+         ;;
+      -g)
+         [ -z "$2" ] && die "$1 option requires a value"
+	 shift
+	 grp="$1"
+         ;;
+      -g=*)
+         grp="${1#-?=}"
+	 ;;
+      *)
+         if [ "$p" = 1 ] ; then
+	    AD_DOMAIN="$1"
+	    p=2
+	 elif [ "$p" = 2 ] ; then
+	    AD_REALM="$1"
+	    p=3
+	 else
+	    echo "extra command-line parameter $1 ignored" >&2
+	 fi
+         ;;
+   esac
+   shift
+done
+
+if net ads testjoin </dev/null >/dev/null 2>&1 ; then
+   die "already joined a domain, use 'net ads leave -U Administrator' to leave"
+fi
+
+if [ -z "$AD_DOMAIN" ] || [ -z "$AD_REALM" ] ; then
+   die "domain and realm name are required, provide them both on the commmand line or set AD_DOMAIN and AD_REALM using '-e' on the 'docker run' command line"
+fi
+
+# tty required for password entry
+if ! tty >/dev/null ; then
+   die "stdin must be a tty, use 'docker exec -ti' when running this script"
+fi
+
+# AWK command to edit smb.conf
+confedit='
+BEGIN {
+  c["workgroup"]=wg ;
+  c["realm"] = kr;
+  c["security"] = "ads" ;
+  c["local master"] = "no" ;
+  c["preferred master"] = "no" ;
+  c["domain master"] = "no" ;
+  c["winbind cache time"] = "10" ;
+  c["idmap config * : range"] = "10000-20000" ;
+  c["password server"] = "*" ;
+}
+$1 == "[global]" {
+   g=1 ; print; for (x in c) { print "   " x " = " c[x] } next; 
+}
+$1 ~ /^\[.*]/ { g=0; print ; next ; }
+g==1 {
+   split($0,a,"[ \t]*=") ;
+   if ( ! (2 in a) ) { print ; next ; } 
+   x=a[1] ; 
+   sub("^[ \t]*","",x) ;
+   if (x in c) { next }
+}
+{ print }
+'
+
+awk -v wg="$AD_DOMAIN" -v kr="$AD_REALM" "$confedit" /etc/samba/smb.conf >/tmp/smb.conf.new
+
+if ! testparm -s /tmp/smb.conf.new >/dev/null ; then
+   die "winbind config check failed"
+fi
+
+cat /tmp/smb.conf.new >/etc/samba/smb.conf
+
+if ! net ads join -w "$AD_DOMAIN" -U "$usr" ; then
+   die ""
+fi
+
+# create/edit /etc/security/pam_winbind.conf
+if ! egrep '^[[]global[]]' /etc/security/pam_winbind.conf >/dev/null 2>&1 ; then
+   echo '[global]' >>/etc/security/pam_winbind.conf
+fi
+awk -v grp="$grp" '/^[[]global[]]/ { print ; print "require_membership_of=" grp ; next } /^[ \t]*require_membership_of[ \t]*=/ {next} {print}' /etc/security/pam_winbind.conf >/tmp/pam_winbind.conf.new
+cat /tmp/pam_winbind.conf.new >/etc/security/pam_winbind.conf
+
+# config done, run the winbind daemon
+echo "starting winbind"
+nmbd --daemon
+sleep 0.1
+winbindd --daemon
+sleep 0.2
