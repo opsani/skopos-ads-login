@@ -1,4 +1,4 @@
-FROM opsani/skopos:latest
+FROM opsani/skopos:edge
 
 COPY ad-join wbstart /skopos/
 
