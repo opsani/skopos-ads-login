@@ -1,5 +1,5 @@
 <!-- vim: set filetype=markdown: -->
-# skopos-ads-login
+# skopos-auth-ad
 
 This repository includes a Dockerfile, and supporting files, which may be used to build a modified Skopos image which includes support for authenticating users against an Active Directory server using PAM.
 
