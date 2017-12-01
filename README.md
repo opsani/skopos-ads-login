@@ -9,7 +9,7 @@ To build the modified Skopos image with AD login support:
 
 - Clone this repository onto a host which has the Docker CLI installed.
 - Optionally, edit the Dockerfile and change the base Skopos image name as desired.  Note that the base image must be based on Ubuntu (e.g. `opsani/skopos:edge`). Skopos images based on Alpine Linux use a different package manager (apk) and require different commands to install the needed PAM modules.
-- Create the new container image by executing this command in the root directory of the cloned repository (change the new image tag as desired):  `build --tag opsani/skopos:ads .`
+- Create the new container image by executing this command in the root directory of the cloned repository (change the new image tag as desired):  `build --tag my_registry/skopos:ads .`
 
 ## Starting Skopos with AD Support
 
@@ -18,7 +18,7 @@ The newly-created image can be used to start a Skopos engine, just like the orig
 ```
 docker run -d -p 8100:8100 --restart=unless-stopped --name skopos \
    -v /var/run/docker.sock:/var/run/docker.sock \
-   opsani/skopos:ads --autocert my-skopos-hostname.example --use-login
+   my_registry/skopos:ads --autocert my-skopos-hostname.example --use-login
 ```
 
 Additional options that may need to be added to the docker command line:
@@ -34,8 +34,8 @@ docker exec -ti skopos /skopos/ad-join [-u ADMINUSR] [-g 'DOM\GROUP'] DOM REALM
 
 - `ADMINUSR` is the name of a user (in the AD domain) that has permission to join servers to it. If the `-u` option is not given, the default is `Administrator`.
 - `DOM\GROUP` specifies an optional group to which users must belong to be able to log in. If not given, *any* user with a valid domain login will be able to access Skopos. The group can be specified either in the form DOM\\GROUP or as an SID string (S-1-N-N-...). Because the name includes a backslash, it must be enclosed in quotes to prevent the shell from interpreting it as a meta-character.
-- `REALM` is the DNS name of the Active Directory realm.  It must be a fully-qualified DNS name.
 - `DOM` is the short name of the AD domain. It is usually the rightmost part of the fully-qualified realm name (e.g. `EXAMPLE`, if the realm is `EXAMPLE.COM`); however, it may be different if the AD was set up by upgrading a Windows NT Domain Controller or is otherwise running in the NT-compatible 'mixed' mode. The short DOM name is what one normally sees on their Windows workstation login prompt, where the username is shown as DOM\User.
+- `REALM` is the DNS name of the Active Directory realm.  It must be a fully-qualified DNS name.
 
 The `ad-join` command must be run interactively (with the `docker exec -ti` option) and will prompt for the password of the domain admin user, to be able to join the domain. The password will not be remembered and the container retains no privileged access to the domain. It will keep only the name and random password generated for the 'machine account' created as part of the join operation. This 'machine account' has only one access right to the AD: to read the users and groups database.
 
